@@ -6,7 +6,8 @@
 |------|-----------|-------|
 | `main` | Produccion / entrega final | Tests + Build + Deploy EKS |
 | `develop` | Integracion y desarrollo | Solo tests (verde en GitHub) |
-| `feat/*` | Nuevas funcionalidades | Tests al mergear a develop |
+| `feature` | Rama de trabajo diario del equipo | Tests al integrar en develop |
+| `feat/*` | Nuevas funcionalidades puntuales | Tests al mergear a develop |
 
 ## Flujo de trabajo (GitFlow)
 
@@ -14,7 +15,13 @@
 feat/dashboard-ui-mejoras  ──merge──>  develop  ──PR──>  main  ──deploy──>  EKS
 ```
 
-### Ejemplo real de este proyecto
+## Rama de trabajo
+
+La rama `feature` es la rama principal de desarrollo del equipo. Todo el trabajo diario se realiza aqui antes de integrar a `develop`.
+
+```
+feature  ──merge──>  develop  ──PR──>  main
+```
 
 | Rama | Commit | Cambio |
 |------|--------|--------|
