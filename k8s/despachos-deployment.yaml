@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: despachos
+  namespace: despacho
+  labels:
+    app: despachos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: despachos
+  template:
+    metadata:
+      labels:
+        app: despachos
+    spec:
+      containers:
+        - name: despachos
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/despachos-backend:eks-1
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - secretRef:
+                name: backend-env
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 90
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "768Mi"

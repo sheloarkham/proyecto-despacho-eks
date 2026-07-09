@@ -1,0 +1,160 @@
+name: CI/CD EKS Deploy
+
+on:
+  push:
+    branches: [main, master, deploy]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  EKS_NAMESPACE: despacho
+
+jobs:
+  test-backends:
+    name: Test APIs Spring Boot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Test Ventas API
+        working-directory: back-Ventas_SpringBoot/Springboot-API-REST
+        run: ./mvnw test -B
+
+      - name: Test Despachos API
+        working-directory: back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+        run: ./mvnw test -B
+
+  build-push-deploy:
+    name: Build, Push ECR y Deploy EKS
+    needs: test-backends
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image_repo: ventas-backend
+            context: back-Ventas_SpringBoot/Springboot-API-REST
+            deployment: ventas
+            container: ventas
+          - image_repo: despachos-backend
+            context: back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+            deployment: despachos
+            container: despachos
+          - image_repo: frontend
+            context: front_despacho
+            deployment: frontend
+            container: frontend
+            build_args: |
+              VITE_VENTAS_API_URL=/api/v1/ventas
+              VITE_DESPACHOS_API_URL=/api/v1/despachos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar AWS credentials (Learner Lab con session token)
+        run: |
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials << EOF
+          [default]
+          aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
+          EOF
+          cat > ~/.aws/config << EOF
+          [default]
+          region=${{ env.AWS_REGION }}
+          output=json
+          EOF
+
+      - name: Verificar identidad AWS
+        run: aws sts get-caller-identity
+
+      - name: Login a ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
+          | docker login --username AWS --password-stdin \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
+      - name: Build + Push a ECR (tag versionado)
+        working-directory: ${{ matrix.context }}
+        run: |
+          TAG="eks-${{ github.run_number }}"
+          IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.image_repo }}:${TAG}"
+          if [ "${{ matrix.image_repo }}" = "frontend" ]; then
+            docker build \
+              --build-arg VITE_VENTAS_API_URL=/api/v1/ventas \
+              --build-arg VITE_DESPACHOS_API_URL=/api/v1/despachos \
+              -t ${IMAGE} .
+          else
+            docker build -t ${IMAGE} .
+          fi
+          docker push ${IMAGE}
+          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
+
+      - name: Instalar kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+          kubectl version --client
+
+      - name: Conectar kubectl a EKS
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
+          kubectl get nodes
+
+      - name: Actualizar Deployment (rolling update)
+        run: |
+          kubectl -n ${{ env.EKS_NAMESPACE }} set image deployment/${{ matrix.deployment }} \
+            ${{ matrix.container }}=${IMAGE}
+          kubectl -n ${{ env.EKS_NAMESPACE }} rollout status deployment/${{ matrix.deployment }}
+
+      - name: Escanear imagen en ECR
+        run: |
+          aws ecr start-image-scan \
+            --repository-name ${{ matrix.image_repo }} \
+            --image-id imageTag=eks-${{ github.run_number }} \
+            --region ${{ env.AWS_REGION }} || true
+
+  validate:
+    name: Validar despliegue
+    needs: build-push-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar AWS credentials (Learner Lab)
+        run: |
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials << EOF
+          [default]
+          aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_session_token=${{ secrets.AWS_SESSION_TOKEN }}
+          EOF
+          cat > ~/.aws/config << EOF
+          [default]
+          region=us-east-1
+          output=json
+          EOF
+
+      - name: Instalar kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+
+      - name: Conectar kubectl a EKS
+        run: aws eks update-kubeconfig --region us-east-1 --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+      - name: Validar pods y servicios
+        run: |
+          kubectl get pods -n despacho
+          kubectl get svc -n despacho
+          kubectl rollout status deployment/ventas -n despacho
+          kubectl rollout status deployment/despachos -n despacho
+          kubectl rollout status deployment/frontend -n despacho

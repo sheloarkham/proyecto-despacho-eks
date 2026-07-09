@@ -1,0 +1,17 @@
+.env
+.env.local
+*.log
+.DS_Store
+__MACOSX/
+.idea/
+.vscode/
+
+# Java / Maven
+**/target/
+
+# Node
+**/node_modules/
+**/dist/
+
+# Secretos reales (usar .example)
+k8s/backend-env-secret.yaml

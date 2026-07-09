@@ -1,0 +1,46 @@
+{
+  "family": "despachos-api-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "despachos-api",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/despachos-api:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8081,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "DB_PORT", "value": "3306" }
+      ],
+      "secrets": [
+        { "name": "DB_ENDPOINT", "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:despacho/db:DB_ENDPOINT::" },
+        { "name": "DB_NAME", "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:despacho/db:DB_NAME::" },
+        { "name": "DB_USERNAME", "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:despacho/db:DB_USERNAME::" },
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:despacho/db:DB_PASSWORD::" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/despachos-api",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 90
+      }
+    }
+  ]
+}
