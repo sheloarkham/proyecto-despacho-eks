@@ -34,7 +34,7 @@ jobs:
   build-push-deploy:
     name: Build, Push ECR y Deploy EKS
     needs: test-backends
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy' || github.event_name == 'workflow_dispatch') && secrets.AWS_ACCESS_KEY_ID != ''
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -54,6 +54,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Verificar secrets AWS configurados
+        run: |
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+            echo "::error::Faltan secrets AWS en GitHub → Settings → Secrets and variables → Actions"
+            exit 1
+          fi
 
       - name: Configurar AWS credentials (Learner Lab con session token)
         run: |
@@ -122,7 +129,7 @@ jobs:
   validate:
     name: Validar despliegue
     needs: build-push-deploy
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy' || github.event_name == 'workflow_dispatch') && secrets.AWS_ACCESS_KEY_ID != ''
+    if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Configurar AWS credentials (Learner Lab)
