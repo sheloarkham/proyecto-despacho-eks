@@ -31,10 +31,30 @@ jobs:
         working-directory: back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
         run: mvn test -B -Dspring.profiles.active=test
 
+  check-secrets:
+    name: Verificar secrets AWS
+    runs-on: ubuntu-latest
+    outputs:
+      secrets_configured: ${{ steps.verify.outputs.secrets_configured }}
+    steps:
+      - name: Verificar disponibilidad de secrets AWS
+        id: verify
+        run: |
+          if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ] && \
+             [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ] && \
+             [ -n "${{ secrets.AWS_SESSION_TOKEN }}" ] && \
+             [ -n "${{ secrets.AWS_ACCOUNT_ID }}" ] && \
+             [ -n "${{ secrets.EKS_CLUSTER_NAME }}" ]; then
+            echo "secrets_configured=true" >> $GITHUB_OUTPUT
+          else
+            echo "secrets_configured=false" >> $GITHUB_OUTPUT
+            echo "::warning::AWS secrets no configurados en GitHub → Settings → Secrets and variables → Actions. El deploy será omitido."
+          fi
+
   build-push-deploy:
     name: Build, Push ECR y Deploy EKS
-    needs: test-backends
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy' || github.event_name == 'workflow_dispatch'
+    needs: [test-backends, check-secrets]
+    if: needs.check-secrets.outputs.secrets_configured == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -54,13 +74,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Verificar secrets AWS configurados
-        run: |
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
-            echo "::error::Faltan secrets AWS en GitHub → Settings → Secrets and variables → Actions"
-            exit 1
-          fi
 
       - name: Configurar AWS credentials (Learner Lab con session token)
         run: |
@@ -128,8 +141,8 @@ jobs:
 
   validate:
     name: Validar despliegue
-    needs: build-push-deploy
-    if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy' || github.event_name == 'workflow_dispatch')
+    needs: [build-push-deploy, check-secrets]
+    if: success() && needs.check-secrets.outputs.secrets_configured == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Configurar AWS credentials (Learner Lab)
