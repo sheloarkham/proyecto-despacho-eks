@@ -1,20 +1,19 @@
-# Etapa 1: build
-FROM eclipse-temurin:17-jdk-alpine AS builder
+# Etapa 1: build con Maven (no requiere mvnw/.mvn)
+FROM maven:3.9-eclipse-temurin-17-alpine AS builder
 WORKDIR /app
 
-COPY mvnw .
-COPY .mvn .mvn
 COPY pom.xml .
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
+RUN mvn dependency:go-offline -B
 
 COPY src src
-RUN ./mvnw package -DskipTests -B
+RUN mvn package -DskipTests -B
 
 # Etapa 2: runtime (imagen minimalista)
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN apk add --no-cache wget && \
+    addgroup -S spring && adduser -S spring -G spring
 USER spring
 
 COPY --from=builder /app/target/*.jar app.jar
