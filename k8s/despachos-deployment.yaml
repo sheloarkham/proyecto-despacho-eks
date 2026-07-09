@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: despachos
-          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/despachos-backend:eks-1
+          image: 889327993925.dkr.ecr.us-east-1.amazonaws.com/despachos-backend:eks-1
           ports:
             - containerPort: 8081
           envFrom:
