@@ -8,28 +8,30 @@ const linkClass = ({ isActive }) =>
 function Navbar() {
   return (
     <nav className="rounded-xl w-[250px] min-h-[880px] bg-teal-600 text-white sticky top-0 p-4 m-4">
-      <h2 className="text-xl font-bold mb-8">Despacho Dashboard</h2>
-      <p className="text-teal-200 text-sm mb-6">Rama: develop</p>
+      <h2 className="text-xl font-bold mb-2">Despacho Dashboard</h2>
+      <span className="inline-block bg-teal-800 text-teal-100 text-xs font-bold px-2 py-1 rounded mb-6">
+        v1.1.0-feat
+      </span>
 
       <ul className="space-y-3">
         <li>
           <NavLink to="/" end className={linkClass}>
-            Inicio
+            🏠 Inicio
           </NavLink>
         </li>
         <li>
           <NavLink to="/usuarios" className={linkClass}>
-            Usuarios
+            👥 Usuarios
           </NavLink>
         </li>
         <li>
           <NavLink to="/productos" className={linkClass}>
-            Productos
+            📦 Productos
           </NavLink>
         </li>
         <li>
           <NavLink to="/configuracion" className={linkClass}>
-            Configuración
+            ⚙️ Configuración
           </NavLink>
         </li>
       </ul>

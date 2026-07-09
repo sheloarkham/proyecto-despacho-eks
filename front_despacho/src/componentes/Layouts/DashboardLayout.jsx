@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import { Breadcrumb } from "./Breadcrumb";
 
 export const DashboardLayout = () => {
   return (
@@ -9,6 +10,7 @@ export const DashboardLayout = () => {
         <Navbar />
       </div>
       <div className="overflow-y-auto p-6">
+        <Breadcrumb />
         <Outlet />
         <Footer />
       </div>
