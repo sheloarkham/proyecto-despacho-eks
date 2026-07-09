@@ -1,6 +1,19 @@
 # Plataforma Despacho - CI/CD con Amazon EKS
 
-Sistema de gestión de ventas y despachos con frontend React, dos APIs Spring Boot y MySQL RDS. Despliegue en **Amazon EKS** (Kubernetes) con pipeline **GitHub Actions**, alineado con la guía de **AWS Academy Learner Lab**.
+Sistema de gestión de ventas y despachos con frontend React, dos APIs Spring Boot y PostgreSQL (Neon). Despliegue en **Amazon EKS** (Kubernetes) con pipeline **GitHub Actions**, alineado con la guía de **AWS Academy Learner Lab**.
+
+## Ramas Git
+
+| Rama | Uso |
+|------|-----|
+| `main` | Producción / entrega |
+| `develop` | Integración y desarrollo |
+
+Ver [docs/BRANCHING.md](docs/BRANCHING.md)
+
+## Contenedores Docker
+
+3 Dockerfiles multietapa (ventas, despachos, frontend). Ver [docs/DOCKER.md](docs/DOCKER.md)
 
 ## Arquitectura EKS
 
@@ -30,7 +43,9 @@ frontend-service (LoadBalancer, publico)
 ├── back-Despachos_SpringBoot/# API Despachos (:8081)
 ├── k8s/                      # Manifiestos Kubernetes
 ├── docker-compose.yml        # Desarrollo local
-├── infra/scripts/setup-eks.sh
+├── docs/
+│   ├── BRANCHING.md          # Estrategia de ramas Git
+│   └── DOCKER.md             # Evidencia Dockerfiles multietapa
 └── .github/workflows/eks-deploy.yml
 ```
 

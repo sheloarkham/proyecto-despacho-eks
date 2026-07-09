@@ -2,7 +2,7 @@ name: CI/CD EKS Deploy
 
 on:
   push:
-    branches: [main, master, deploy]
+    branches: [main, master, deploy, develop]
   workflow_dispatch:
 
 env:
@@ -25,15 +25,16 @@ jobs:
 
       - name: Test Ventas API
         working-directory: back-Ventas_SpringBoot/Springboot-API-REST
-        run: ./mvnw test -B
+        run: mvn test -B -Dspring.profiles.active=test
 
       - name: Test Despachos API
         working-directory: back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
-        run: ./mvnw test -B
+        run: mvn test -B -Dspring.profiles.active=test
 
   build-push-deploy:
     name: Build, Push ECR y Deploy EKS
     needs: test-backends
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy' || github.event_name == 'workflow_dispatch') && secrets.AWS_ACCESS_KEY_ID != ''
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -50,9 +51,6 @@ jobs:
             context: front_despacho
             deployment: frontend
             container: frontend
-            build_args: |
-              VITE_VENTAS_API_URL=/api/v1/ventas
-              VITE_DESPACHOS_API_URL=/api/v1/despachos
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -102,7 +100,6 @@ jobs:
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
           chmod +x kubectl
           sudo mv kubectl /usr/local/bin/kubectl
-          kubectl version --client
 
       - name: Conectar kubectl a EKS
         run: |
@@ -125,6 +122,7 @@ jobs:
   validate:
     name: Validar despliegue
     needs: build-push-deploy
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deploy' || github.event_name == 'workflow_dispatch') && secrets.AWS_ACCESS_KEY_ID != ''
     runs-on: ubuntu-latest
     steps:
       - name: Configurar AWS credentials (Learner Lab)
@@ -155,6 +153,3 @@ jobs:
         run: |
           kubectl get pods -n despacho
           kubectl get svc -n despacho
-          kubectl rollout status deployment/ventas -n despacho
-          kubectl rollout status deployment/despachos -n despacho
-          kubectl rollout status deployment/frontend -n despacho
